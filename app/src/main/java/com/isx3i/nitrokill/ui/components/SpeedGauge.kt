@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -37,15 +38,25 @@ fun SpeedGauge(
         label = "gauge_progress"
     )
 
-    Box(modifier = modifier.size(160.dp), contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.size(160.dp)) {
+    Box(
+        modifier = modifier.size(160.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(
+            modifier = Modifier.size(160.dp)
+        ) {
             val strokeWidth = 14.dp.toPx()
             val diameter = min(size.width, size.height) - strokeWidth
+
             val topLeft = Offset(
                 (size.width - diameter) / 2f,
                 (size.height - diameter) / 2f
             )
-            val arcSize = Size(diameter, diameter)
+
+            val arcSize = Size(
+                diameter,
+                diameter
+            )
 
             drawArc(
                 color = Color(0xFF23233A),
@@ -54,23 +65,47 @@ fun SpeedGauge(
                 useCenter = false,
                 topLeft = topLeft,
                 size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                style = Stroke(
+                    width = strokeWidth,
+                    cap = StrokeCap.Round
+                )
             )
 
             drawArc(
-                brush = Brush.sweepGradient(listOf(NitroPurple, NitroBlue, NitroPurple)),
+                brush = Brush.sweepGradient(
+                    listOf(
+                        NitroPurple,
+                        NitroBlue,
+                        NitroPurple
+                    )
+                ),
                 startAngle = 135f,
                 sweepAngle = 270f * animatedProgress,
                 useCenter = false,
                 topLeft = topLeft,
                 size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                style = Stroke(
+                    width = strokeWidth,
+                    cap = StrokeCap.Round
+                )
             )
         }
 
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = valueText, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text(text = label, color = TextSecondary, fontSize = 13.sp)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = valueText,
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = label,
+                color = TextSecondary,
+                fontSize = 13.sp
+            )
         }
     }
 }
