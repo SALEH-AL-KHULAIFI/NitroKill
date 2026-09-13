@@ -1,0 +1,8 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.NitroKill" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@color/nitro_dark_bg</item>
+        <item name="android:navigationBarColor">@color/nitro_dark_bg</item>
+        <item name="android:windowBackground">@color/nitro_dark_bg</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="23">false</item>
+    </style>
+</resources>
