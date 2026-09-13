@@ -20,12 +20,13 @@ import com.isx3i.nitrokill.data.NetworkSpeedTracker
 import com.isx3i.nitrokill.data.formatSpeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * خدمة أمامية (Foreground Service) تعرض سرعة الإنترنت الحالية كإشعار دائم
- * منخفض الأولوية، مع أيقونة مُولّدة ديناميكياً تعرض رقم سرعة التنزيل الحالي
- * في شريط الحالة - تماماً كما تفعل تطبيقات "Internet Speed Meter".
+ * خدمة أمامية تعرض سرعة الإنترنت الحالية بشكل دائم في شريط الحالة.
+ * يتم تكبير النص داخل الأيقونة قدر الإمكان مع الحفاظ على مساحة آمنة
+ * حتى لا يتم قص الرقم من قبل نظام Android.
  */
 class SpeedMonitorService : Service() {
 
@@ -43,16 +44,34 @@ class SpeedMonitorService : Service() {
         createNotificationChannel()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(NOTIFICATION_ID, buildNotification("0 Kbps", "0 Kbps"))
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int
+    ): Int {
+        startForeground(
+            NOTIFICATION_ID,
+            buildNotification("0 Kbps", "0 Kbps")
+        )
 
         scope.launch {
             tracker.speedFlow().collect { speed ->
+
                 val downText = formatSpeed(speed.downloadBps)
                 val upText = formatSpeed(speed.uploadBps)
-                val notification = buildNotification(downText, upText)
-                val manager = getSystemService(NotificationManager::class.java)
-                manager?.notify(NOTIFICATION_ID, notification)
+
+                val notification = buildNotification(
+                    downText,
+                    upText
+                )
+
+                val manager =
+                    getSystemService(NotificationManager::class.java)
+
+                manager?.notify(
+                    NOTIFICATION_ID,
+                    notification
+                )
             }
         }
 
@@ -60,7 +79,7 @@ class SpeedMonitorService : Service() {
     }
 
     override fun onDestroy() {
-        job.cancel()
+        scope.cancel()
         super.onDestroy()
     }
 
@@ -68,54 +87,147 @@ class SpeedMonitorService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "مراقبة سرعة الإنترنت",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "يعرض سرعة الإنترنت الحالية بشكل مستمر في شريط الحالة"
+                description =
+                    "يعرض سرعة الإنترنت الحالية بشكل مستمر في شريط الحالة"
+
                 setShowBadge(false)
             }
-            val manager = getSystemService(NotificationManager::class.java)
+
+            val manager =
+                getSystemService(NotificationManager::class.java)
+
             manager?.createNotificationChannel(channel)
         }
     }
 
-    private fun buildNotification(downText: String, upText: String): Notification {
+    private fun buildNotification(
+        downText: String,
+        upText: String
+    ): Notification {
+
         val openAppIntent = PendingIntent.getActivity(
             this,
             0,
             Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_IMMUTABLE or
+                PendingIntent.FLAG_UPDATE_CURRENT
         )
 
         val dynamicIcon = generateSpeedIcon(downText)
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        return NotificationCompat.Builder(
+            this,
+            CHANNEL_ID
+        )
             .setContentTitle("NitroKill")
-            .setContentText("⬇ $downText   ⬆ $upText")
+            .setContentText(
+                "⬇ $downText   ⬆ $upText"
+            )
             .setSmallIcon(dynamicIcon)
             .setContentIntent(openAppIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setShowWhen(false)
+            .setPriority(
+                NotificationCompat.PRIORITY_LOW
+            )
+            .setCategory(
+                NotificationCompat.CATEGORY_SERVICE
+            )
             .build()
     }
 
-    /** يرسم رقم سرعة التنزيل الحالي على شكل أيقونة نصية لعرضها في شريط الحالة. */
-    private fun generateSpeedIcon(text: String): IconCompat {
-        val displayText = text.substringBefore(" ").take(3)
-        val size = 96
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    /**
+     * ينشئ أيقونة نصية للسرعة.
+     *
+     * الرقم يُرسم بحجم أكبر من الإصدار السابق،
+     * مع ترك هامش مناسب حتى لا يتم قصه.
+     */
+    private fun generateSpeedIcon(
+        text: String
+    ): IconCompat {
+
+        val displayText =
+            shortenSpeedForStatusBar(text)
+
+        // مساحة رسم أكبر لتحسين وضوح الرقم.
+        val size = 192
+
+        val bitmap = Bitmap.createBitmap(
+            size,
+            size,
+            Bitmap.Config.ARGB_8888
+        )
+
         val canvas = Canvas(bitmap)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+
+        val paint = Paint(
+            Paint.ANTI_ALIAS_FLAG or
+                Paint.SUBPIXEL_TEXT_FLAG
+        ).apply {
+
             color = Color.WHITE
+
             textAlign = Paint.Align.CENTER
-            typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
-            textSize = if (displayText.length > 2) 30f else 40f
+
+            typeface = Typeface.create(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+            )
+
+            textSize = when {
+                displayText.length <= 2 -> 86f
+                displayText.length == 3 -> 72f
+                else -> 58f
+            }
         }
-        val yPos = (canvas.height / 2f) - ((paint.descent() + paint.ascent()) / 2f)
-        canvas.drawText(displayText, canvas.width / 2f, yPos, paint)
-        return IconCompat.createWithBitmap(bitmap)
+
+        val fontMetrics = paint.fontMetrics
+
+        val baseline =
+            size / 2f -
+                (fontMetrics.ascent +
+                    fontMetrics.descent) / 2f
+
+        canvas.drawText(
+            displayText,
+            size / 2f,
+            baseline,
+            paint
+        )
+
+        return IconCompat.createWithBitmap(
+            bitmap
+        )
+    }
+
+    /**
+     * يختصر قيمة السرعة حتى تبقى واضحة
+     * في المساحة المحدودة لشريط الحالة.
+     *
+     * أمثلة:
+     * 125 Kbps  -> 125
+     * 1.4 Mbps  -> 1.4
+     * 12.8 Mbps -> 12.8
+     */
+    private fun shortenSpeedForStatusBar(
+        text: String
+    ): String {
+
+        val number = text
+            .trim()
+            .substringBefore(" ")
+
+        return when {
+            number.length <= 4 -> number
+            number.contains(".") -> number.take(4)
+            else -> number.take(4)
+        }
     }
 }
