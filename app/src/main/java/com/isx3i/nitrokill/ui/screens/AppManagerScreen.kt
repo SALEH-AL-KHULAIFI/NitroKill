@@ -65,7 +65,7 @@ fun AppManagerScreen() {
         apps = repository.getLaunchableApps()
     }
 
-    val memInfo = remember { repository.getMemoryInfo() }
+    var memInfo by remember { mutableStateOf(repository.getMemoryInfo()) }
     val usedMemory = memInfo.totalMem - memInfo.availMem
     val usedRatio = if (memInfo.totalMem > 0) usedMemory.toFloat() / memInfo.totalMem else 0f
 
@@ -112,8 +112,16 @@ fun AppManagerScreen() {
 
         Button(
             onClick = {
+                val before = repository.getMemoryInfo().availMem
                 repository.closeAll(apps)
-                statusMessage = "تم إرسال أمر التنظيف إلى ${apps.size} تطبيق"
+                val after = repository.getMemoryInfo()
+                memInfo = after
+                val freed = (after.availMem - before).coerceAtLeast(0)
+                statusMessage = if (freed > 1_048_576L) {
+                    "تم تحرير ${formatDataSize(freed)} من الذاكرة"
+                } else {
+                    "لا توجد عمليات خلفية قابلة للإغلاق حالياً — النظام يديرها تلقائياً"
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -143,8 +151,16 @@ fun AppManagerScreen() {
                 AppRow(
                     app = app,
                     onClose = {
+                        val before = repository.getMemoryInfo().availMem
                         repository.closeApp(app.packageName)
-                        statusMessage = "تم إغلاق ${app.label}"
+                        val after = repository.getMemoryInfo()
+                        memInfo = after
+                        val freed = (after.availMem - before).coerceAtLeast(0)
+                        statusMessage = if (freed > 524_288L) {
+                            "تم إغلاق ${app.label} وتحرير ${formatDataSize(freed)}"
+                        } else {
+                            "${app.label} لم يكن يشغّل عمليات خلفية قابلة للإغلاق"
+                        }
                     }
                 )
             }
