@@ -25,8 +25,9 @@ import kotlinx.coroutines.launch
 
 /**
  * خدمة أمامية تعرض سرعة الإنترنت الحالية بشكل دائم في شريط الحالة.
- * يتم تكبير النص داخل الأيقونة قدر الإمكان مع الحفاظ على مساحة آمنة
- * حتى لا يتم قص الرقم من قبل نظام Android.
+ *
+ * تم تكبير مساحة الرسم وحجم الرقم بشكل كبير،
+ * مع استخدام خط عريض وواضح قدر الإمكان.
  */
 class SpeedMonitorService : Service() {
 
@@ -49,24 +50,34 @@ class SpeedMonitorService : Service() {
         flags: Int,
         startId: Int
     ): Int {
+
         startForeground(
             NOTIFICATION_ID,
-            buildNotification("0 Kbps", "0 Kbps")
+            buildNotification(
+                "0 Kbps",
+                "0 Kbps"
+            )
         )
 
         scope.launch {
             tracker.speedFlow().collect { speed ->
 
-                val downText = formatSpeed(speed.downloadBps)
-                val upText = formatSpeed(speed.uploadBps)
+                val downText =
+                    formatSpeed(speed.downloadBps)
 
-                val notification = buildNotification(
-                    downText,
-                    upText
-                )
+                val upText =
+                    formatSpeed(speed.uploadBps)
+
+                val notification =
+                    buildNotification(
+                        downText,
+                        upText
+                    )
 
                 val manager =
-                    getSystemService(NotificationManager::class.java)
+                    getSystemService(
+                        NotificationManager::class.java
+                    )
 
                 manager?.notify(
                     NOTIFICATION_ID,
@@ -86,6 +97,7 @@ class SpeedMonitorService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun createNotificationChannel() {
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 
             val channel = NotificationChannel(
@@ -93,6 +105,7 @@ class SpeedMonitorService : Service() {
                 "مراقبة سرعة الإنترنت",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
+
                 description =
                     "يعرض سرعة الإنترنت الحالية بشكل مستمر في شريط الحالة"
 
@@ -100,7 +113,9 @@ class SpeedMonitorService : Service() {
             }
 
             val manager =
-                getSystemService(NotificationManager::class.java)
+                getSystemService(
+                    NotificationManager::class.java
+                )
 
             manager?.createNotificationChannel(channel)
         }
@@ -111,15 +126,20 @@ class SpeedMonitorService : Service() {
         upText: String
     ): Notification {
 
-        val openAppIntent = PendingIntent.getActivity(
-            this,
-            0,
-            Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE or
-                PendingIntent.FLAG_UPDATE_CURRENT
-        )
+        val openAppIntent =
+            PendingIntent.getActivity(
+                this,
+                0,
+                Intent(
+                    this,
+                    MainActivity::class.java
+                ),
+                PendingIntent.FLAG_IMMUTABLE or
+                    PendingIntent.FLAG_UPDATE_CURRENT
+            )
 
-        val dynamicIcon = generateSpeedIcon(downText)
+        val dynamicIcon =
+            generateSpeedIcon(downText)
 
         return NotificationCompat.Builder(
             this,
@@ -144,10 +164,9 @@ class SpeedMonitorService : Service() {
     }
 
     /**
-     * ينشئ أيقونة نصية للسرعة.
+     * ينشئ أيقونة السرعة.
      *
-     * الرقم يُرسم بحجم أكبر من الإصدار السابق،
-     * مع ترك هامش مناسب حتى لا يتم قصه.
+     * تم رفع حجم الصورة وحجم النص بدرجة كبيرة.
      */
     private fun generateSpeedIcon(
         text: String
@@ -156,44 +175,79 @@ class SpeedMonitorService : Service() {
         val displayText =
             shortenSpeedForStatusBar(text)
 
-        // مساحة رسم أكبر لتحسين وضوح الرقم.
-        val size = 192
+        /*
+         * رفعنا مساحة الرسم من 192 إلى 512.
+         *
+         * ملاحظة:
+         * Android قد يفرض حجمًا ثابتًا لأيقونة
+         * شريط الحالة، لكن تكبير مساحة الرسم
+         * وحجم النص يعطي أفضل نتيجة ممكنة
+         * قبل الانتقال إلى طريقة عرض مختلفة.
+         */
+        val size = 512
 
-        val bitmap = Bitmap.createBitmap(
-            size,
-            size,
-            Bitmap.Config.ARGB_8888
-        )
-
-        val canvas = Canvas(bitmap)
-
-        val paint = Paint(
-            Paint.ANTI_ALIAS_FLAG or
-                Paint.SUBPIXEL_TEXT_FLAG
-        ).apply {
-
-            color = Color.WHITE
-
-            textAlign = Paint.Align.CENTER
-
-            typeface = Typeface.create(
-                Typeface.DEFAULT,
-                Typeface.BOLD
+        val bitmap =
+            Bitmap.createBitmap(
+                size,
+                size,
+                Bitmap.Config.ARGB_8888
             )
 
-            textSize = when {
-                displayText.length <= 2 -> 86f
-                displayText.length == 3 -> 72f
-                else -> 58f
-            }
-        }
+        val canvas =
+            Canvas(bitmap)
 
-        val fontMetrics = paint.fontMetrics
+        val paint =
+            Paint(
+                Paint.ANTI_ALIAS_FLAG or
+                    Paint.SUBPIXEL_TEXT_FLAG
+            ).apply {
+
+                color = Color.WHITE
+
+                textAlign =
+                    Paint.Align.CENTER
+
+                typeface =
+                    Typeface.create(
+                        Typeface.DEFAULT,
+                        Typeface.BOLD
+                    )
+
+                /*
+                 * تكبير الرقم بشكل كبير جدًا.
+                 */
+                textSize = when {
+
+                    displayText.length <= 1 ->
+                        360f
+
+                    displayText.length == 2 ->
+                        310f
+
+                    displayText.length == 3 ->
+                        260f
+
+                    else ->
+                        215f
+                }
+
+                /*
+                 * تحسين سماكة الرقم.
+                 */
+                strokeWidth = 8f
+
+                isSubpixelText = true
+            }
+
+        val fontMetrics =
+            paint.fontMetrics
 
         val baseline =
             size / 2f -
-                (fontMetrics.ascent +
-                    fontMetrics.descent) / 2f
+                (
+                    fontMetrics.ascent +
+                        fontMetrics.descent
+                    ) / 2f
 
         canvas.drawText(
             displayText,
@@ -209,25 +263,34 @@ class SpeedMonitorService : Service() {
 
     /**
      * يختصر قيمة السرعة حتى تبقى واضحة
-     * في المساحة المحدودة لشريط الحالة.
+     * داخل المساحة المحدودة لأيقونة شريط الحالة.
      *
      * أمثلة:
+     *
      * 125 Kbps  -> 125
      * 1.4 Mbps  -> 1.4
      * 12.8 Mbps -> 12.8
+     * 125.5 Mbps -> 125.
      */
     private fun shortenSpeedForStatusBar(
         text: String
     ): String {
 
-        val number = text
-            .trim()
-            .substringBefore(" ")
+        val number =
+            text
+                .trim()
+                .substringBefore(" ")
 
         return when {
-            number.length <= 4 -> number
-            number.contains(".") -> number.take(4)
-            else -> number.take(4)
+
+            number.length <= 4 ->
+                number
+
+            number.contains(".") ->
+                number.take(4)
+
+            else ->
+                number.take(4)
         }
     }
 }
